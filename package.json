@@ -1,30 +1,17 @@
 {
-<<<<<<< HEAD
   "name": "line-bot",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node index.js"
-=======
-  "name": "render-server",
-  "version": "1.0.0",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
->>>>>>> ee39ffb (Initial commit for LINE BOT project)
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
-<<<<<<< HEAD
-    "axios": "^1.7.7",
-=======
-    "@line/bot-sdk": "^9.5.0",
->>>>>>> ee39ffb (Initial commit for LINE BOT project)
-    "body-parser": "^1.20.3",
-    "express": "^4.21.1"
+    "express": "^4.17.1",
+    "dotenv": "^10.0.0"
   }
 }
