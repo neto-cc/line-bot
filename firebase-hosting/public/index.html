@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LINE BOT Test</title>
+</head>
+<body>
+    <h1>Send Message to LINE BOT</h1>
+
+    <button id="sendButton">Send Message</button>
+
+    <script>
+	  const sendMessage = async (message) => {
+	    const response = await fetch('https://line-bot.onrender.com/webhook', {
+ 	     method: 'POST',
+ 	     headers: { 'Content-Type': 'application/json' },
+ 	     body: JSON.stringify({ message }),
+  	  });
+ 	   const data = await response.json();
+	    console.log(data);  // サーバーからのレスポンスをコンソールに表示
+	  };
+
+	  sendMessage("Hello LINE BOT!");
+	</script>
+
+</body>
+</html>
