@@ -1,5 +1,6 @@
 const express = require('express');
-const { Client, middleware } = require('@line/bot-sdk');
+const express = require('express');
+const { middleware } = require('@line/bot-sdk');
 require('dotenv').config();
 
 const app = express();
@@ -8,6 +9,11 @@ const config = {
   channelSecret: process.env.CHANNEL_SECRET,
   channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
 };
+
+// 必ずmiddlewareを先に配置
+app.use(middleware(config));
+app.use(express.json()); // JSONパーサーを後に設定
+
 
 const client = new Client(config);
 
@@ -33,19 +39,16 @@ function handleEvent(event) {
     return Promise.resolve(null);
   }
 
-  let replyText = '';
+  // テキスト返信の例
+  const replyText = event.message.text === 'こんにちは' ? 'こんねと' : 'おつカレッジ';
+  const message = { type: 'text', text: replyText };
 
-  if (event.message.text === 'こんにちは') {
-    replyText = "こんねと";
-  } else {
-    replyText = "おつカレッジ";
-  }
+  console.log(`Replying with: ${replyText}`); // ログ確認
 
-  console.log(`Replying with: ${replyText}`);
-
-  const echo = { type: 'text', text: replyText };
-  return client.replyMessage(event.replyToken, echo);
+  // 正しい形式で返信
+  return client.replyMessage(event.replyToken, message);
 }
+
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
