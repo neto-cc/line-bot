@@ -11,12 +11,15 @@ const config = {
 
 const client = new Client(config);
 
-// JSON解析（必要な場合のみ追加）
-app.use(express.json());
+app.use((req, res, next) => {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  next();
+});
 
-// Webhookエンドポイント
+app.use(middleware(config));
+
 app.post('/webhook', (req, res) => {
-  console.log("Received webhook event:", JSON.stringify(req.body, null, 2)); // イベント内容を詳細にログ出力
+  console.log("Received webhook event:", JSON.stringify(req.body, null, 2));
   Promise.all(req.body.events.map(handleEvent))
     .then((result) => res.json(result))
     .catch((err) => {
@@ -25,7 +28,6 @@ app.post('/webhook', (req, res) => {
     });
 });
 
-// メッセージの処理
 function handleEvent(event) {
   if (event.type !== 'message' || event.message.type !== 'text') {
     return Promise.resolve(null);
@@ -33,20 +35,18 @@ function handleEvent(event) {
 
   let replyText = '';
 
-  // メッセージが「こんにちは」なら「こんねと」、それ以外は「おつカレッジ」
   if (event.message.text === 'こんにちは') {
-    replyText = 'こんねと';
+    replyText = "こんねと";
   } else {
-    replyText = 'おつカレッジ';
+    replyText = "おつカレッジ";
   }
 
-  console.log(`Replying with: ${replyText}`); // ログで確認
+  console.log(`Replying with: ${replyText}`);
 
   const echo = { type: 'text', text: replyText };
   return client.replyMessage(event.replyToken, echo);
 }
 
-// サーバーを起動
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
