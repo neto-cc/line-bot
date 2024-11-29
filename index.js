@@ -11,11 +11,12 @@ const config = {
 
 const client = new Client(config);
 
-app.use(middleware(config));
+// JSON解析（必要な場合のみ追加）
+app.use(express.json());
 
 // Webhookエンドポイント
 app.post('/webhook', (req, res) => {
-  console.log("Received webhook event:", req.body.events);  // 受け取ったイベント内容をログに出力
+  console.log("Received webhook event:", JSON.stringify(req.body, null, 2)); // イベント内容を詳細にログ出力
   Promise.all(req.body.events.map(handleEvent))
     .then((result) => res.json(result))
     .catch((err) => {
@@ -43,9 +44,10 @@ function handleEvent(event) {
 
   const echo = { type: 'text', text: replyText };
   return client.replyMessage(event.replyToken, echo);
+}
 
-const PORT = process.env.PORT || 3000; // PORT環境変数を優先
+// サーバーを起動
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
-}
