@@ -1,22 +1,20 @@
 const express = require('express');
-const line = require('@line/bot-sdk');
-const dotenv = require('dotenv');
-
-dotenv.config();
+const { Client, middleware } = require('@line/bot-sdk');
+require('dotenv').config();
 
 const app = express();
-const port = process.env.PORT || 3000;
 
-// LINE Messaging APIの設定
 const config = {
-  channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
-  channelSecret: process.env.LINE_CHANNEL_SECRET,
+  channelSecret: process.env.CHANNEL_SECRET,
+  channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
 };
 
-const client = new line.Client(config);
+const client = new Client(config);
+
+app.use(middleware(config));
 
 // Webhookエンドポイント
-app.post('/webhook', line.middleware(config), (req, res) => {
+app.post('/webhook', (req, res) => {
   Promise.all(req.body.events.map(handleEvent))
     .then((result) => res.json(result))
     .catch((err) => {
@@ -25,23 +23,17 @@ app.post('/webhook', line.middleware(config), (req, res) => {
     });
 });
 
-// メッセージを処理する関数
-const handleEvent = (event) => {
+// メッセージの処理
+function handleEvent(event) {
   if (event.type !== 'message' || event.message.type !== 'text') {
     return Promise.resolve(null);
   }
 
-  // 応答メッセージを作成
-  const replyMessage = {
-    type: 'text',
-    text: `あなたのメッセージ: ${event.message.text}`,
-  };
+  const echo = { type: 'text', text: event.message.text };
+  return client.replyMessage(event.replyToken, echo);
+}
 
-  // メッセージを返信
-  return client.replyMessage(event.replyToken, replyMessage);
-};
-
-// サーバーの起動
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
 });

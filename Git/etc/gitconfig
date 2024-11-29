@@ -7,7 +7,7 @@
 	required = true
 [http]
 	sslBackend = openssl
-	sslCAInfo = D:/sotuken/Git/Git/mingw64/etc/ssl/certs/ca-bundle.crt
+	sslCAInfo = D:/sotuken/Git/mingw64/etc/ssl/certs/ca-bundle.crt
 [core]
 	autocrlf = true
 	fscache = true
