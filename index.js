@@ -32,25 +32,15 @@ function handleEvent(event) {
 
   let replyText = '';
 
-  // 送られてきたメッセージが「こんにちは」であれば「こんねと」、それ以外は「おつカレッジ」
-  if (event.message.text.trim() === 'こんにちは') {
+  // メッセージが「こんにちは」なら「こんねと」、それ以外は「おつカレッジ」
+  if (event.message.text === 'こんにちは') {
     replyText = 'こんねと';
   } else {
     replyText = 'おつカレッジ';
   }
 
-  console.log("Replying with:", replyText);  // 返信するテキストをログに出力
+  console.log(`Replying with: ${replyText}`); // ログで確認
 
   const echo = { type: 'text', text: replyText };
-  
-  // 返信メッセージを送信
-  return client.replyMessage(event.replyToken, echo)
-    .catch((err) => {
-      console.error('Error sending reply:', err);
-    });
+  return client.replyMessage(event.replyToken, echo);
 }
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
