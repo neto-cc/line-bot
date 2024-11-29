@@ -3,8 +3,6 @@ const express = require('express');
 const { middleware } = require('@line/bot-sdk');
 require('dotenv').config();
 
-const app = express();
-
 const config = {
   channelSecret: process.env.CHANNEL_SECRET,
   channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
