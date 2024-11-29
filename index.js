@@ -43,4 +43,9 @@ function handleEvent(event) {
 
   const echo = { type: 'text', text: replyText };
   return client.replyMessage(event.replyToken, echo);
+
+const PORT = process.env.PORT || 3000; // PORTŠÂ‹«•Ï”‚ð—Dæ
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
 }
