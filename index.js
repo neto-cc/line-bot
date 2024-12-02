@@ -1,51 +1,82 @@
 ﻿const express = require('express');
 const { Client, middleware } = require('@line/bot-sdk');
+const admin = require('firebase-admin');
 require('dotenv').config();
 
 const app = express();
 
 // LINE Messaging APIの設定
-const config = {
+const lineConfig = {
   channelSecret: process.env.CHANNEL_SECRET,
   channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
 };
+const client = new Client(lineConfig);
 
-// LINEクライアントの作成
-const client = new Client(config);
-
-// Content-Typeヘッダーを設定（文字化け対策）
-app.use((req, res, next) => {
-  res.setHeader('Content-Type', 'application/json; charset=utf-8');
-  next();
+// Firebase Admin SDKの初期化
+const firebaseConfig = {
+  projectId: process.env.FIREBASE_PROJECT_ID,
+  clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+  privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+  databaseURL: process.env.FIREBASE_DATABASE_URL,
+};
+admin.initializeApp({
+  credential: admin.credential.cert(firebaseConfig),
+  databaseURL: firebaseConfig.databaseURL,
 });
+const db = admin.database();
 
-// middlewareの適用 (必ず最初に)
-app.use(middleware(config));
+app.use(express.json());
+app.use(middleware(lineConfig)); // LINE middleware
 
-// Webhookエンドポイントの設定
+// LINE Webhookエンドポイント
 app.post('/webhook', (req, res) => {
-  console.log("Received webhook event:", JSON.stringify(req.body, null, 2));
-
-  // 受信イベントの処理
-  Promise.all(req.body.events.map(handleEvent))
+  Promise.all(req.body.events.map(handleLineEvent))
     .then((result) => res.json(result))
     .catch((err) => {
-      console.error('Error processing event:', err);
+      console.error('Error processing LINE event:', err);
       res.status(500).end();
     });
 });
 
-// イベント処理関数
-function handleEvent(event) {
-  // メッセージイベント以外は無視
+// Firebase書き込みエンドポイント
+app.post('/write', async (req, res) => {
+  try {
+    const { path, data } = req.body;
+    await db.ref(path).set(data);
+    res.status(200).send('Data written successfully!');
+  } catch (error) {
+    console.error('Error writing to Firebase:', error);
+    res.status(500).send('Error writing to Firebase');
+  }
+});
+
+// LINEイベント処理
+async function handleLineEvent(event) {
   if (event.type !== 'message' || event.message.type !== 'text') {
     return Promise.resolve(null);
   }
 
-  // テキストメッセージに応じて返信内容を設定
-  const replyText = event.message.text === 'こんにちは' ? 'こんねと' : 'おつカレッジ';
+  // メッセージ内容に応じた返信内容を設定
+  let replyText;
+  if (event.message.text === 'こんにちは') {
+    replyText = 'こんねと';
+  } else if (event.message.text === '年間行事') {
+    replyText = 'こちらが年間行事のリンクです:\nhttps://www.iwaki-cc.ac.jp/app/wp-content/uploads/2024/04/2024%E5%B9%B4%E9%96%93%E8%A1%8C%E4%BA%8B%E4%BA%88%E5%AE%9A-_%E5%AD%A6%E7%94%9F%E7%94%A8.pdf';
+  } else {
+    replyText = 'おつカレッジ';
+  }
 
-  console.log(`Replying with: ${replyText}`); // デバッグ用ログ
+  // Firebaseへのログ保存例
+  try {
+    await db.ref('logs').push({
+      userId: event.source.userId,
+      message: event.message.text,
+      timestamp: Date.now(),
+    });
+    console.log('Logged message to Firebase');
+  } catch (error) {
+    console.error('Error logging to Firebase:', error);
+  }
 
   // 返信メッセージをLINEに送信
   return client.replyMessage(event.replyToken, { type: 'text', text: replyText });
@@ -54,5 +85,5 @@ function handleEvent(event) {
 // サーバー起動
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
