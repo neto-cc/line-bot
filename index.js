@@ -61,7 +61,7 @@ async function handleLineEvent(event) {
   if (event.message.text === 'こんにちは') {
     replyText = 'こんねと';
   } else if (event.message.text === '年間行事') {
-    replyText = 'こちらが年間行事のリンクです:\nhttps://www.iwaki-cc.ac.jp/app/wp-content/uploads/2024/04/2024%E5%B9%B4%E9%96%93%E8%A1%8C%E4%BA%8B%E4%BA%88%E5%AE%9A-_%E5%AD%A6%E7%94%9F%E7%94%A8.pdf';
+    replyText = 'こちらが年間行事のリンクです:\nhttps://www.iwaki-cc.ac.jp/app/wp-content/uploads/2024/04/2024%E5%B9%B4%E9%96%93%E8%A1%8C%E4%BA%8B%E4%BA%88%E5%AE%9A-_%E5%AD%A6%E7%94%A8.pdf';
   } else {
     replyText = 'おつカレッジ';
   }
