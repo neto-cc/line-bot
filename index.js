@@ -10,6 +10,7 @@ const lineConfig = {
   channelSecret: process.env.CHANNEL_SECRET,
   channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
 };
+
 const client = new Client(lineConfig);
 
 // Firebase Admin SDKの初期化
@@ -19,6 +20,10 @@ const firebaseConfig = {
   privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
   databaseURL: process.env.FIREBASE_DATABASE_URL,
 };
+
+// Firebase設定が正しいか確認
+console.log('Firebase Config:', firebaseConfig);
+
 admin.initializeApp({
   credential: admin.credential.cert(firebaseConfig),
   databaseURL: firebaseConfig.databaseURL,
@@ -34,14 +39,18 @@ app.post('/webhook', (req, res) => {
     .then((result) => res.json(result))
     .catch((err) => {
       console.error('Error processing LINE event:', err);
-      res.status(500).end();
+      res.status(500).send('Internal Server Error');
     });
 });
 
 // Firebase書き込みエンドポイント
 app.post('/write', async (req, res) => {
+  const { path, data } = req.body;
+  if (!path || !data) {
+    return res.status(400).send('Path and data are required');
+  }
+
   try {
-    const { path, data } = req.body;
     await db.ref(path).set(data);
     res.status(200).send('Data written successfully!');
   } catch (error) {
@@ -79,7 +88,11 @@ async function handleLineEvent(event) {
   }
 
   // 返信メッセージをLINEに送信
-  return client.replyMessage(event.replyToken, { type: 'text', text: replyText });
+  try {
+    await client.replyMessage(event.replyToken, { type: 'text', text: replyText });
+  } catch (error) {
+    console.error('Error replying to LINE user:', error);
+  }
 }
 
 // サーバー起動
