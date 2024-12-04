@@ -29,16 +29,17 @@ admin.initializeApp({
 const db = admin.database();
 
 app.use(express.json());
-app.use(middleware(lineConfig)); // LINE middleware
+app.use(middleware(lineConfig)); // LINEのmiddlewareをexpressの前に使用
 
 // LINE Webhookエンドポイント
-app.post('/webhook', (req, res) => {
-  Promise.all(req.body.events.map(handleLineEvent))
-    .then((result) => res.json(result))
-    .catch((err) => {
-      console.error('Error processing LINE event:', err);
-      res.status(500).send('Internal Server Error');
-    });
+app.post('/webhook', async (req, res) => {
+  try {
+    const result = await Promise.all(req.body.events.map(handleLineEvent));
+    res.json(result);
+  } catch (err) {
+    console.error('Error processing LINE event:', err);
+    res.status(500).send('Internal Server Error');
+  }
 });
 
 // Firebase書き込みエンドポイント
@@ -61,6 +62,7 @@ app.post('/write', async (req, res) => {
 async function handleLineEvent(event) {
   console.log('Received event:', event);  // イベントの内容を確認
   
+  // メッセージタイプがテキストでない場合は処理を終了
   if (event.type !== 'message' || event.message.type !== 'text') {
     return Promise.resolve(null);
   }
