@@ -1,111 +1,79 @@
-﻿const express = require('express');
-const { Client, middleware } = require('@line/bot-sdk');
-const admin = require('firebase-admin');
-const crypto = require('crypto'); // 署名検証に使用
-require('dotenv').config();
+﻿// 必要なパッケージのインポート
+const express = require('express');
+const bodyParser = require('body-parser');
+const crypto = require('crypto');
+const line = require('@line/bot-sdk');  // LINE SDKのインポート
 
+// Expressアプリケーションの作成
 const app = express();
 
-// LINE Messaging APIの設定
-const lineConfig = {
-  channelSecret: process.env.CHANNEL_SECRET,
-  channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
+// 必要なミドルウェアの設定
+app.use(bodyParser.json());  // JSON形式のリクエストボディを解析するミドルウェア
+
+// LINEのチャンネル設定
+const config = {
+  channelAccessToken: 'YOUR_CHANNEL_ACCESS_TOKEN', // チャンネルアクセストークン
+  channelSecret: 'YOUR_CHANNEL_SECRET',             // チャンネルシークレット
 };
 
-const client = new Client(lineConfig);
-
-// Firebase Admin SDKの初期化
-const firebaseConfig = {
-  projectId: process.env.FIREBASE_PROJECT_ID,
-  clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-  privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-  databaseURL: process.env.FIREBASE_DATABASE_URL,
-};
-
-admin.initializeApp({
-  credential: admin.credential.cert(firebaseConfig),
-  databaseURL: firebaseConfig.databaseURL,
-});
-
-const db = admin.database();
-
-app.use(express.json()); // JSONボディをパース
-app.use(middleware(lineConfig)); // LINEのmiddlewareをexpressの前に使用
-
-// LINE Webhookエンドポイント
-app.post('/webhook', (req, res) => {
-  const signature = req.headers['x-line-signature']; // LINEから送られた署名
-  const body = JSON.stringify(req.body); // リクエストボディ
-  
-  if (!verifySignature(body, signature)) {
-    console.error('Invalid signature');
-    return res.status(400).send('Invalid signature');
-  }
-  
-  Promise.all(req.body.events.map(handleLineEvent))
-    .then((result) => res.json(result))
-    .catch((err) => {
-      console.error('Error processing LINE event:', err);
-      res.status(500).send('Internal Server Error');
-    });
-});
+// LINEクライアントの作成
+const client = new line.Client(config);
 
 // 署名検証関数
-function verifySignature(body, signature) {
-  const hash = crypto
-    .createHmac('SHA256', lineConfig.channelSecret) // 使用する署名アルゴリズム（SHA256）
+function verifySignature(req, secret) {
+  const signature = req.headers['x-line-signature']; // LINEの署名ヘッダーを取得
+  const body = JSON.stringify(req.body); // リクエストボディをJSONとして文字列化
+
+  const hash = crypto.createHmac('SHA256', secret)  // チャンネルシークレットを使用
     .update(body)
-    .digest('base64');
-  
+    .digest('base64'); // ハッシュをbase64エンコード
+
   console.log('Calculated Hash:', hash);  // デバッグ用に計算されたハッシュをログに出力
-  console.log('Received Signature:', signature);  // LINEから送られた署名をログに出力
-  
-  return signature === hash;
+  console.log('Received Signature:', signature);  // 受信した署名をログに出力
+
+  return signature === hash;  // 計算した署名と受信した署名が一致するかを確認
 }
 
-// LINEイベント処理
-async function handleLineEvent(event) {
-  console.log('Received event:', event);  // イベントの内容を確認
-  
-  if (event.type !== 'message' || event.message.type !== 'text') {
-    return Promise.resolve(null);
-  }
-
-  let replyText;
-  if (event.message.text === 'こんにちは') {
-    replyText = 'こんねと';
-  } else if (event.message.text === '年間行事') {
-    replyText = 'こちらが年間行事のリンクです:\nhttps://www.iwaki-cc.ac.jp/app/wp-content/uploads/2024/04/2024%E5%B9%B4%E9%96%93%E8%A1%8C%E4%BA%8B%E4%BA%88%E5%AE%9A-_%E5%AD%A6%E7%94%A8.pdf';
-  } else {
-    replyText = 'おつカレッジ';
-  }
-
-  // Firebaseログ書き込み部分
+// Webhookエンドポイント
+app.post('/webhook', (req, res) => {
   try {
-    await db.ref('logs').push({
-      userId: event.source.userId,
-      message: event.message.text,
-      timestamp: Date.now(),
-    });
-    console.log('Logged message to Firebase');
-  } catch (error) {
-    console.error('Error logging to Firebase:', error);
-  }
+    // 署名の検証
+    if (!verifySignature(req, config.channelSecret)) {
+      return res.status(400).send('Invalid signature');  // 署名が無効な場合は400エラーを返す
+    }
 
-  // LINE返信処理部分
-  try {
-    await client.replyMessage(event.replyToken, {
-      type: 'text',
-      text: replyText,
-    });
-    console.log('Replied with:', replyText); // 応答した内容を確認
-  } catch (error) {
-    console.error('Error replying to LINE event:', error);
-  }
-}
+    // Webhookイベントを処理
+    const events = req.body.events;
+    events.forEach(event => {
+      // イベントのタイプがメッセージであれば処理
+      if (event.type === 'message' && event.message.type === 'text') {
+        const replyToken = event.replyToken;
+        const message = {
+          type: 'text',
+          text: `受け取ったメッセージ: ${event.message.text}`, // 受け取ったメッセージをそのまま返す
+        };
 
-// サーバーの開始
+        // メッセージの返信
+        client.replyMessage(replyToken, message)
+          .then(() => {
+            console.log('Successfully replied to message');
+          })
+          .catch((err) => {
+            console.error('Error replying message:', err);
+          });
+      }
+    });
+
+    // LINEプラットフォームに200 OKを返す
+    res.status(200).send('OK');
+  } catch (err) {
+    console.error('Error processing webhook:', err);
+    res.status(500).send('Internal Server Error');  // サーバー内部エラーの際は500を返す
+  }
+});
+
+// サーバーの起動
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+  console.log(`Server is running on port ${port}`);
 });
