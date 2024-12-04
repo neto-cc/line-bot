@@ -1,6 +1,7 @@
 ﻿const express = require('express');
 const { Client, middleware } = require('@line/bot-sdk');
 const admin = require('firebase-admin');
+const crypto = require('crypto'); // 署名検証に使用
 require('dotenv').config();
 
 const app = express();
@@ -28,41 +29,41 @@ admin.initializeApp({
 
 const db = admin.database();
 
-app.use(express.json());
+app.use(express.json()); // JSONボディをパース
 app.use(middleware(lineConfig)); // LINEのmiddlewareをexpressの前に使用
 
 // LINE Webhookエンドポイント
-app.post('/webhook', async (req, res) => {
-  try {
-    const result = await Promise.all(req.body.events.map(handleLineEvent));
-    res.json(result);
-  } catch (err) {
-    console.error('Error processing LINE event:', err);
-    res.status(500).send('Internal Server Error');
+app.post('/webhook', (req, res) => {
+  const signature = req.headers['x-line-signature']; // LINEから送られた署名
+  const body = JSON.stringify(req.body); // リクエストボディ
+  
+  if (!verifySignature(body, signature)) {
+    console.error('Invalid signature');
+    return res.status(400).send('Invalid signature');
   }
+  
+  Promise.all(req.body.events.map(handleLineEvent))
+    .then((result) => res.json(result))
+    .catch((err) => {
+      console.error('Error processing LINE event:', err);
+      res.status(500).send('Internal Server Error');
+    });
 });
 
-// Firebase書き込みエンドポイント
-app.post('/write', async (req, res) => {
-  const { path, data } = req.body;
-  if (!path || !data) {
-    return res.status(400).send('Path and data are required');
-  }
-
-  try {
-    await db.ref(path).set(data);
-    res.status(200).send('Data written successfully!');
-  } catch (error) {
-    console.error('Error writing to Firebase:', error);
-    res.status(500).send('Error writing to Firebase');
-  }
-});
+// 署名検証関数
+function verifySignature(body, signature) {
+  const hash = crypto
+    .createHmac('SHA256', lineConfig.channelSecret) // 使用する署名アルゴリズム（SHA256）
+    .update(body)
+    .digest('base64');
+  
+  return signature === hash;
+}
 
 // LINEイベント処理
 async function handleLineEvent(event) {
   console.log('Received event:', event);  // イベントの内容を確認
   
-  // メッセージタイプがテキストでない場合は処理を終了
   if (event.type !== 'message' || event.message.type !== 'text') {
     return Promise.resolve(null);
   }
