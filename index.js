@@ -59,6 +59,8 @@ app.post('/write', async (req, res) => {
 
 // LINEイベント処理
 async function handleLineEvent(event) {
+  console.log('Received event:', event);  // イベントの内容を確認
+  
   if (event.type !== 'message' || event.message.type !== 'text') {
     return Promise.resolve(null);
   }
@@ -72,6 +74,7 @@ async function handleLineEvent(event) {
     replyText = 'おつカレッジ';
   }
 
+  // Firebaseログ書き込み部分
   try {
     await db.ref('logs').push({
       userId: event.source.userId,
@@ -83,11 +86,13 @@ async function handleLineEvent(event) {
     console.error('Error logging to Firebase:', error);
   }
 
+  // LINE返信処理部分
   try {
     await client.replyMessage(event.replyToken, {
       type: 'text',
       text: replyText,
     });
+    console.log('Replied with:', replyText); // 応答した内容を確認
   } catch (error) {
     console.error('Error replying to LINE event:', error);
   }
