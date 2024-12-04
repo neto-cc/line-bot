@@ -57,6 +57,9 @@ function verifySignature(body, signature) {
     .update(body)
     .digest('base64');
   
+  console.log('Calculated Hash:', hash);  // デバッグ用に計算されたハッシュをログに出力
+  console.log('Received Signature:', signature);  // LINEから送られた署名をログに出力
+  
   return signature === hash;
 }
 
