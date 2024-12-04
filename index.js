@@ -37,6 +37,11 @@ app.use(middleware(config));
 app.post('/webhook', (req, res) => {
   console.log("Received webhook event:", JSON.stringify(req.body, null, 2));
 
+  // 署名検証エラーが発生した場合に処理を中止
+  if (req.body.signatureValidationFailed) {
+    return res.status(400).send('Signature validation failed');
+  }
+
   // 受信イベントの処理
   Promise.all(req.body.events.map(handleEvent))
     .then((result) => res.json(result))
@@ -92,4 +97,3 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
-	
