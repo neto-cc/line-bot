@@ -1,79 +1,58 @@
-﻿// 必要なパッケージのインポート
-const express = require('express');
-const bodyParser = require('body-parser');
-const crypto = require('crypto');
-const line = require('@line/bot-sdk');  // LINE SDKのインポート
+﻿const express = require('express');
+const { Client, middleware } = require('@line/bot-sdk');
+require('dotenv').config();
 
-// Expressアプリケーションの作成
 const app = express();
 
-// 必要なミドルウェアの設定
-app.use(bodyParser.json());  // JSON形式のリクエストボディを解析するミドルウェア
-
-// LINEのチャンネル設定
+// LINE Messaging APIの設定
 const config = {
-  channelAccessToken: 'YOUR_CHANNEL_ACCESS_TOKEN', // チャンネルアクセストークン
-  channelSecret: 'YOUR_CHANNEL_SECRET',             // チャンネルシークレット
+  channelSecret: process.env.CHANNEL_SECRET,
+  channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
 };
 
 // LINEクライアントの作成
-const client = new line.Client(config);
+const client = new Client(config);
 
-// 署名検証関数
-function verifySignature(req, secret) {
-  const signature = req.headers['x-line-signature']; // LINEの署名ヘッダーを取得
-  const body = JSON.stringify(req.body); // リクエストボディをJSONとして文字列化
-
-  const hash = crypto.createHmac('SHA256', secret)  // チャンネルシークレットを使用
-    .update(body)
-    .digest('base64'); // ハッシュをbase64エンコード
-
-  console.log('Calculated Hash:', hash);  // デバッグ用に計算されたハッシュをログに出力
-  console.log('Received Signature:', signature);  // 受信した署名をログに出力
-
-  return signature === hash;  // 計算した署名と受信した署名が一致するかを確認
-}
-
-// Webhookエンドポイント
-app.post('/webhook', (req, res) => {
-  try {
-    // 署名の検証
-    if (!verifySignature(req, config.channelSecret)) {
-      return res.status(400).send('Invalid signature');  // 署名が無効な場合は400エラーを返す
-    }
-
-    // Webhookイベントを処理
-    const events = req.body.events;
-    events.forEach(event => {
-      // イベントのタイプがメッセージであれば処理
-      if (event.type === 'message' && event.message.type === 'text') {
-        const replyToken = event.replyToken;
-        const message = {
-          type: 'text',
-          text: `受け取ったメッセージ: ${event.message.text}`, // 受け取ったメッセージをそのまま返す
-        };
-
-        // メッセージの返信
-        client.replyMessage(replyToken, message)
-          .then(() => {
-            console.log('Successfully replied to message');
-          })
-          .catch((err) => {
-            console.error('Error replying message:', err);
-          });
-      }
-    });
-
-    // LINEプラットフォームに200 OKを返す
-    res.status(200).send('OK');
-  } catch (err) {
-    console.error('Error processing webhook:', err);
-    res.status(500).send('Internal Server Error');  // サーバー内部エラーの際は500を返す
-  }
+// Content-Typeヘッダーを設定（文字化け対策）
+app.use((req, res, next) => {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  next();
 });
 
-// サーバーの起動
-const port = process.env.PORT || 3000;
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+// middlewareの適用 (必ず最初に)
+app.use(middleware(config));
+
+// Webhookエンドポイントの設定
+app.post('/webhook', (req, res) => {
+  console.log("Received webhook event:", JSON.stringify(req.body, null, 2));
+
+  // 受信イベントの処理
+  Promise.all(req.body.events.map(handleEvent))
+    .then((result) => res.json(result))
+    .catch((err) => {
+      console.error('Error processing event:', err);
+      res.status(500).end();
+    });
+});
+
+// イベント処理関数
+function handleEvent(event) {
+  // メッセージイベント以外は無視
+  if (event.type !== 'message' || event.message.type !== 'text') {
+    return Promise.resolve(null);
+  }
+
+  // テキストメッセージに応じて返信内容を設定
+  const replyText = event.message.text === 'こんにちは' ? 'こんねと' : 'おつカレッジ';
+
+  console.log(`Replying with: ${replyText}`); // デバッグ用ログ
+
+  // 返信メッセージをLINEに送信
+  return client.replyMessage(event.replyToken, { type: 'text', text: replyText });
+}
+
+// サーバー起動
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
 });
