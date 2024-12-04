@@ -14,19 +14,14 @@ const config = {
 // Firebase Admin SDKの初期化
 admin.initializeApp({
   credential: admin.credential.cert({
-    
-	projectId: process.env.FIREBASE_PROJECT_ID,
+    projectId: process.env.FIREBASE_PROJECT_ID,
     clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
     privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
   }),
-  
-  }
-databaseURL: process.env.FIREBASE_DATABASE_URL,
+  databaseURL: process.env.FIREBASE_DATABASE_URL,
 });
 
 // LINEクライアントの作成
-
-con
 const client = new Client(config);
 
 // Content-Typeヘッダーを設定（文字化け対策）
@@ -66,9 +61,7 @@ async function handleEvent(event) {
     replyText = 'こんねと';
   } else if (userMessage.includes('年間行事')) {
     replyText = 'こちらが年間行事の予定です:\nhttps://www.iwaki-cc.ac.jp/app/wp-content/uploads/2024/04/2024%E5%B9%B4%E9%96%93%E8%A1%8C%E4%BA%8B%E4%BA%88%E5%AE%9A-_%E5%AD%A6%E7%94%9F%E7%94%A8.pdf';
-  } 
-  
-else {
+  } else {
     replyText = 'おつカレッジ';
   }
 
@@ -78,9 +71,7 @@ else {
   const db = admin.database();
   const ref = db.ref('line-messages');
   const messageData = {
-    
-    us
-userId: event.source.userId,
+    userId: event.source.userId,
     message: userMessage,
     timestamp: event.timestamp,
   };
