@@ -80,11 +80,9 @@ async function handleEvent(event) {
 
   // オーキャンに該当するかチェック
   if (userMessage.includes('オープンキャンパス')) {
-	const imageMessage = {
-	      type: 'image',
-	      originalContentUrl: 'https://www.iwaki-cc.ac.jp/app/wp-content/uploads/2024/04/%E3%83%9D%E3%82%B9%E3%82%BF%E3%83%BC%E6%9C%80%E7%B5%82PNG%E5%8C%96.png', // 実際の画像URL
-	    };
-    // フィードバックテンプレート
+    const replyMessage = 'こちらがオープンキャンパスの予定です:\nhttps://www.iwaki-cc.ac.jp/app/wp-content/uploads/2024/04/%E3%83%9D%E3%82%B9%E3%82%BF%E3%83%BC%E6%9C%80%E7%B5%82PNG%E5%8C%96.png';
+    
+	// フィードバックテンプレート
     const feedbackTemplate = {
       type: 'template',
       altText: 'フィードバックのお願い',
