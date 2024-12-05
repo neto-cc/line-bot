@@ -44,39 +44,41 @@ async function handleEvent(event) {
 
   const userMessage = event.message.text;
   let replyMessage;
+  const feedbackTennplate;
 
   // テキストメッセージに応じて返信内容を設定
   if (userMessage === 'こんにちは') {
     replyMessage = 'こんねと';
   } else if (userMessage.includes('年間行事')) {
     replyMessage = 'こちらが年間行事の予定です:\nhttps://www.iwaki-cc.ac.jp/app/wp-content/uploads/2024/04/2024%E5%B9%B4%E9%96%93%E8%A1%8C%E4%BA%8B%E4%BA%88%E5%AE%9A-_%E5%AD%A6%E7%94%9F%E7%94%A8.pdf';
+  	// ボタンテンプレートメッセージの作成
+ 	 const feedbackTemplate = {
+  	  type: 'template',
+	    altText: 'フィードバックのお願い',
+	    template: {
+	      type: 'buttons',
+	      text: 'この情報は役に立ちましたか？',
+	      actions: [
+	        {
+	          type: 'postback',
+	          label: '役に立った',
+	          data: 'feedback=useful',
+	        },
+	        {
+	          type: 'postback',
+	          label: '役に立たなかった',
+	          data: 'feedback=not_useful',
+	        },
+	      ],
+	    },
+	  };
   } else {
     replyMessage = 'おつカレッジ';
   }
 
   console.log(`Replying with: ${replyMessage}`); // デバッグ用ログ
 
-  // ボタンテンプレートメッセージの作成
-  const feedbackTemplate = {
-    type: 'template',
-    altText: 'フィードバックのお願い',
-    template: {
-      type: 'buttons',
-      text: 'この情報は役に立ちましたか？',
-      actions: [
-        {
-          type: 'postback',
-          label: '役に立った',
-          data: 'feedback=useful',
-        },
-        {
-          type: 'postback',
-          label: '役に立たなかった',
-          data: 'feedback=not_useful',
-        },
-      ],
-    },
-  };
+  
 
   // 返信メッセージをLINEに送信
   await client.replyMessage(event.replyToken, [
