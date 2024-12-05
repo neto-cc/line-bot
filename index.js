@@ -43,48 +43,45 @@ async function handleEvent(event) {
   }
 
   const userMessage = event.message.text;
-  let replyMessage;
-  const feedbackTennplate;
 
-  // テキストメッセージに応じて返信内容を設定
-  if (userMessage === 'こんにちは') {
-    replyMessage = 'こんねと';
-  } else if (userMessage.includes('年間行事')) {
-    replyMessage = 'こちらが年間行事の予定です:\nhttps://www.iwaki-cc.ac.jp/app/wp-content/uploads/2024/04/2024%E5%B9%B4%E9%96%93%E8%A1%8C%E4%BA%8B%E4%BA%88%E5%AE%9A-_%E5%AD%A6%E7%94%9F%E7%94%A8.pdf';
-  	// ボタンテンプレートメッセージの作成
- 	 feedbackTemplate = {
-  	  type: 'template',
-	    altText: 'フィードバックのお願い',
-	    template: {
-	      type: 'buttons',
-	      text: 'この情報は役に立ちましたか？',
-	      actions: [
-	        {
-	          type: 'postback',
-	          label: '役に立った',
-	          data: 'feedback=useful',
-	        },
-	        {
-	          type: 'postback',
-	          label: '役に立たなかった',
-	          data: 'feedback=not_useful',
-	        },
-	      ],
-	    },
-	  };
-  } else {
-    replyMessage = 'おつカレッジ';
+  // 年間行事に該当するかチェック
+  if (userMessage.includes('年間行事')) {
+    const replyMessage = 'こちらが年間行事の予定です:\nhttps://www.iwaki-cc.ac.jp/app/wp-content/uploads/2024/04/2024%E5%B9%B4%E9%96%93%E8%A1%8C%E4%BA%8B%E4%BA%88%E5%AE%9A-_%E5%AD%A6%E7%94%9F%E7%94%A8.pdf';
+
+    // フィードバックテンプレート
+    const feedbackTemplate = {
+      type: 'template',
+      altText: 'フィードバックのお願い',
+      template: {
+        type: 'buttons',
+        text: 'この情報は役に立ちましたか？',
+        actions: [
+          {
+            type: 'postback',
+            label: '役に立った',
+            data: 'feedback=useful',
+          },
+          {
+            type: 'postback',
+            label: '役に立たなかった',
+            data: 'feedback=not_useful',
+          },
+        ],
+      },
+    };
+
+    // LINEに複数メッセージを送信
+    console.log(`Replying with message and feedback: ${replyMessage}`);
+    return client.replyMessage(event.replyToken, [
+      { type: 'text', text: replyMessage },
+      feedbackTemplate,
+    ]);
   }
 
-  console.log(`Replying with: ${replyMessage}`); // デバッグ用ログ
-
-  
-
-  // 返信メッセージをLINEに送信
-  await client.replyMessage(event.replyToken, [
-    { type: 'text', text: replyMessage },
-    feedbackTemplate,
-  ]);
+  // それ以外のメッセージへの応答
+  const defaultReply = userMessage === 'こんにちは' ? 'こんねと' : 'おつカレッジ';
+  console.log(`Replying with default message: ${defaultReply}`);
+  return client.replyMessage(event.replyToken, { type: 'text', text: defaultReply });
 }
 
 // サーバー起動
