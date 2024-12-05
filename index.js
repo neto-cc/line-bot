@@ -36,28 +36,55 @@ app.post('/webhook', (req, res) => {
 });
 
 // イベント処理関数
-function handleEvent(event) {
+async function handleEvent(event) {
   // メッセージイベント以外は無視
   if (event.type !== 'message' || event.message.type !== 'text') {
     return Promise.resolve(null);
   }
 
   const userMessage = event.message.text;
-  let replyText;
+  let replyMessage;
 
   // テキストメッセージに応じて返信内容を設定
-  if (userMessage.includes('こんにちは')) {
-    replyText = 'こんねと';
+  if (userMessage === 'こんにちは') {
+    replyMessage = 'こんねと';
   } else if (userMessage.includes('年間行事')) {
-    replyText = 'こちらが年間行事の予定です:\nhttps://www.iwaki-cc.ac.jp/app/wp-content/uploads/2024/04/2024%E5%B9%B4%E9%96%93%E8%A1%8C%E4%BA%8B%E4%BA%88%E5%AE%9A-_%E5%AD%A6%E7%94%9F%E7%94%A8.pdf';
+    replyMessage = 'こちらが年間行事の予定です:\nhttps://www.iwaki-cc.ac.jp/app/wp-content/uploads/2024/04/2024%E5%B9%B4%E9%96%93%E8%A1%8C%E4%BA%8B%E4%BA%88%E5%AE%9A-_%E5%AD%A6%E7%94%9F%E7%94%A8.pdf';
+  
+	// ボタンテンプレートメッセージの作成
+	const feedbackTemplate = {
+    	type: 'template',
+    	altText: 'フィードバックのお願い',
+    	template: {
+      	type: 'buttons',
+      	text: 'この情報は役に立ちましたか？',
+      	actions: [
+        	{
+          	type: 'postback',
+          	label: '役に立った',
+          	data: 'feedback=useful',
+        	},
+        	{
+          	type: 'postback',
+         	label: '役に立たなかった',
+          	data: 'feedback=not_useful',
+        	},
+      	],
+    	},
+  	};
   } else {
-    replyText = 'おつカレッジ';
+    replyMessage = 'おつカレッジ';
   }
 
-  console.log(`Replying with: ${replyText}`); // デバッグ用ログ
+  console.log(`Replying with: ${replyMessage}`); // デバッグ用ログ
+
+  
 
   // 返信メッセージをLINEに送信
-  return client.replyMessage(event.replyToken, { type: 'text', text: replyText });
+  await client.replyMessage(event.replyToken, [
+    { type: 'text', text: replyMessage },
+    feedbackTemplate,
+  ]);
 }
 
 // サーバー起動
@@ -65,4 +92,3 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
-
