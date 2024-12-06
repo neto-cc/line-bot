@@ -91,12 +91,12 @@ async function handleEvent(event) {
         text: 'この情報は役に立ちましたか？',
         actions: [
           {
-            type: 'postback',
+            type: 'button',
             label: '役に立った',
             data: 'feedback=useful',
           },
           {
-            type: 'postback',
+            type: 'button',
             label: '役に立たなかった',
             data: 'feedback=not_useful',
           },
