@@ -79,7 +79,7 @@ const feedbackTemplate = {
         template: {
           
           t
-type: 'buttons',
+		type: 'buttons',
           text: 'この情報は役に立ちましたか？',
           
           action
