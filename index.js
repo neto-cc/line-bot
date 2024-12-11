@@ -12,17 +12,15 @@ const config = {
 };
 
 // Firebase Admin SDKの初期化
-<<<<<<< HEAD
 const serviceAccount = require('sotukennti-mu2-firebase-adminsdk-t5vyk-7437e38362.json'); // FirebaseサービスアカウントのJSONファイル
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
   databaseURL: serviceAccount.databaseURL || 'https://sotukennti-mu2.firebaseio.com', // JSONファイル内の `databaseURL` を利用
-=======
+
 const serviceAccount = require('./path/to/your/firebase-service-account.json'); // FirebaseサービスアカウントのJSONファイル
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
   databaseURL: process.env.FIREBASE_DATABASE_URL, // Firebase Realtime DatabaseのURL
->>>>>>> ec1fbef8b4bc89153ba20365d15c7c6ddb2eedf5
 });
 const database = admin.database();
 
