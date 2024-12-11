@@ -12,16 +12,13 @@ const config = {
 };
 
 // Firebase Admin SDKの初期化
-const serviceAccount = require('sotukennti-mu2-firebase-adminsdk-t5vyk-7437e38362.json'); // FirebaseサービスアカウントのJSONファイル
+// 環境変数からサービスアカウントのJSONを取得
+const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT); // 環境変数からサービスアカウントJSONを読み込む
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
-  databaseURL: serviceAccount.databaseURL || 'https://sotukennti-mu2.firebaseio.com', // JSONファイル内の `databaseURL` を利用
-
-const serviceAccount = require('./path/to/your/firebase-service-account.json'); // FirebaseサービスアカウントのJSONファイル
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  databaseURL: process.env.FIREBASE_DATABASE_URL, // Firebase Realtime DatabaseのURL
+  databaseURL: process.env.FIREBASE_DATABASE_URL, // Firebase Realtime DatabaseのURLも環境変数から取得
 });
+
 const database = admin.database();
 
 // LINEクライアントの作成
