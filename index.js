@@ -1,5 +1,6 @@
-﻿const express = require('express');
+const express = require('express');
 const { Client, middleware } = require('@line/bot-sdk');
+const admin = require('firebase-admin');
 require('dotenv').config();
 
 const app = express();
@@ -9,6 +10,14 @@ const config = {
   channelSecret: process.env.CHANNEL_SECRET,
   channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
 };
+
+// Firebase Admin SDKの初期化
+const serviceAccount = require('./path/to/your/firebase-service-account.json'); // FirebaseサービスアカウントのJSONファイル
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+  databaseURL: process.env.FIREBASE_DATABASE_URL, // Firebase Realtime DatabaseのURL
+});
+const database = admin.database();
 
 // LINEクライアントの作成
 const client = new Client(config);
@@ -65,6 +74,10 @@ async function handleEvent(event) {
   // メッセージイベントの処理
   if (event.type === 'message' && event.message.type === 'text') {
     const userMessage = event.message.text;
+    const userId = event.source.userId;
+
+    // Firebaseにメッセージを保存
+    await saveMessageToFirebase(userId, userMessage);
 
     // 年間行事に該当するかチェック
     if (userMessage.includes('年間行事')) {
@@ -135,6 +148,20 @@ async function handleEvent(event) {
 
   // 他のイベントは無視
   return Promise.resolve(null);
+}
+
+// Firebaseにメッセージを保存する関数
+async function saveMessageToFirebase(userId, message) {
+  try {
+    const messageRef = database.ref(`messages/${userId}`).push();
+    await messageRef.set({
+      message,
+      timestamp: admin.database.ServerValue.TIMESTAMP,
+    });
+    console.log('Message saved to Firebase:', { userId, message });
+  } catch (error) {
+    console.error('Error saving message to Firebase:', error);
+  }
 }
 
 // サーバー起動
