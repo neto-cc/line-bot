@@ -7,7 +7,7 @@ const fs = require('fs');
 const app = express();
 
 // 必須環境変数の確認
-const requiredEnv = ['CHANNEL_SECRET', 'CHANNEL_ACCESS_TOKEN', 'FIREBASE_SERVICE_ACCOUNT_PATH', 'FIREBASE_DATABASE_URL'];
+const requiredEnv = ['CHANNEL_SECRET', 'CHANNEL_ACCESS_TOKEN', 'FIREBASE_SERVICE_ACCOUNT', 'FIREBASE_DATABASE_URL'];
 for (const env of requiredEnv) {
   if (!process.env[env]) {
     console.error(`Error: Missing required environment variable: ${env}`);
