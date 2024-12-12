@@ -10,7 +10,7 @@ const config = {
 };
 
 // Firebase Admin SDKの初期化
-const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT); // .envから取得したサービスアカウントの情報を解析
+const serviceAccount = JSON.parse(process.env.GOOGLE_CREDENTIALS);
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
   databaseURL: process.env.FIREBASE_DATABASE_URL,
