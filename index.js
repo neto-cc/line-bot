@@ -1,6 +1,7 @@
 const express = require('express');
 const line = require('@line/bot-sdk');
 const admin = require('firebase-admin');
+require('dotenv').config(); // dotenvを使って.envファイルを読み込む
 
 // 環境変数を利用して設定を取得
 const config = {
@@ -9,11 +10,12 @@ const config = {
 };
 
 // Firebase Admin SDKの初期化
-const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || '{}');
+const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT); // .envから取得したサービスアカウントの情報を解析
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
   databaseURL: process.env.FIREBASE_DATABASE_URL,
 });
+
 // Firestoreの参照を取得
 const db = admin.firestore();
 
