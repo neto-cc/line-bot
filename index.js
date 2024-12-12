@@ -1,46 +1,90 @@
 const express = require('express');
-const { Client, middleware } = require('@line/bot-sdk');
-require('dotenv').config();
+const line = require('@line/bot-sdk');
+const admin = require('firebase-admin');
 
-const app = express();
-
-// LINE Messaging APIの設定
+// 環境変数を利用して設定を取得
 const config = {
-  channelSecret: process.env.CHANNEL_SECRET,
-  channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
+  channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
+  channelSecret: process.env.LINE_CHANNEL_SECRET,
 };
 
-// LINEクライアントの作成
-const client = new Client(config);
-
-// Content-Typeヘッダーを設定（文字化け対策）
-app.use((req, res, next) => {
-  res.setHeader('Content-Type', 'application/json; charset=utf-8');
-  next();
+// Firebase Admin SDKの初期化
+const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+  databaseURL: process.env.FIREBASE_DATABASE_URL,
 });
 
-// middlewareの適用
-app.use(middleware(config));
+// Firestoreの参照を取得
+const db = admin.firestore();
 
-// Webhookエンドポイントの設定
-app.post('/webhook', (req, res) => {
-  console.log("Received webhook event:", JSON.stringify(req.body, null, 2));
+// Expressアプリの作成
+const app = express();
 
-  // 受信イベントの処理
+// LINE SDKミドルウェアを使用
+app.use('/webhook', line.middleware(config));
+
+// LINEクライアントの作成
+const client = new line.Client(config);
+
+// Webhookエンドポイント
+app.post('/webhook', express.json(), (req, res) => {
   Promise.all(req.body.events.map(handleEvent))
     .then((result) => res.json(result))
     .catch((err) => {
-      console.error('Error processing event:', err);
+      console.error(err);
       res.status(500).end();
     });
 });
 
-// イベント処理関数
+// イベントを処理する関数
 async function handleEvent(event) {
-  // postbackイベントの処理
+  if (event.type === 'message' && event.message.type === 'text') {
+    const userMessage = event.message.text;
+
+    // 年間行事に関するメッセージの処理
+    if (userMessage.includes('年間行事')) {
+      const eventDoc = await db.collection('information').doc('annualEvents').get();
+      if (!eventDoc.exists) {
+        return client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: '年間行事の情報が見つかりません。',
+        });
+      }
+
+      const replyMessage = eventDoc.data().url;
+      return client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: `年間行事の情報はこちらです: ${replyMessage}`,
+      });
+    }
+
+    // デフォルトの応答
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: `「${userMessage}」についての情報はまだ対応していません。`,
+    });
+  }
+
   if (event.type === 'postback') {
     const postbackData = event.postback.data;
 
+    // Firestoreにフィードバックを保存
+    const feedbackData = {
+      userId: event.source.userId || 'anonymous',
+      feedback: postbackData,
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    await db.collection('feedbacks').add(feedbackData)
+      .then(() => {
+        console.log('Feedback saved to Firestore');
+      })
+      .catch((err) => {
+        console.error('Error saving feedback to Firestore:', err);
+      });
+
+    // フィードバックに応答
     if (postbackData === 'feedback=useful') {
       return client.replyMessage(event.replyToken, {
         type: 'text',
@@ -55,90 +99,18 @@ async function handleEvent(event) {
       });
     }
 
-    // 不明なpostbackデータへの対応
     return client.replyMessage(event.replyToken, {
       type: 'text',
       text: '不明な選択です。もう一度お試しください。',
     });
   }
 
-  // メッセージイベントの処理
-  if (event.type === 'message' && event.message.type === 'text') {
-    const userMessage = event.message.text;
-
-    // 年間行事に該当するかチェック
-    if (userMessage.includes('年間行事')) {
-      const replyMessage = 'こちらが年間行事の予定です:\nhttps://www.iwaki-cc.ac.jp/app/wp-content/uploads/2024/04/2024%E5%B9%B4%E9%96%93%E8%A1%8C%E4%BA%8B%E4%BA%88%E5%AE%9A-_%E5%AD%A6%E7%94%9F%E7%94%A8.pdf';
-
-      const feedbackTemplate = {
-        type: 'template',
-        altText: 'フィードバックのお願い',
-        template: {
-          type: 'buttons',
-          text: 'この情報は役に立ちましたか？',
-          actions: [
-            {
-              type: 'postback',
-              label: '役に立った',
-              data: 'feedback=useful',
-            },
-            {
-              type: 'postback',
-              label: '役に立たなかった',
-              data: 'feedback=not_useful',
-            },
-          ],
-        },
-      };
-
-      return client.replyMessage(event.replyToken, [
-        { type: 'text', text: replyMessage },
-        feedbackTemplate,
-      ]);
-    }
-
-    // オープンキャンパスに該当するかチェック
-    if (userMessage.includes('オープンキャンパス')) {
-      const replyMessage = 'こちらがオープンキャンパスの予定です:\nhttps://www.iwaki-cc.ac.jp/app/wp-content/uploads/2024/04/%E3%83%9D%E3%82%B9%E3%82%BF%E3%83%BC%E6%9C%80%E7%B5%82PNG%E5%8C%96.png';
-
-      const feedbackTemplate = {
-        type: 'template',
-        altText: 'フィードバックのお願い',
-        template: {
-          type: 'buttons',
-          text: 'この情報は役に立ちましたか？',
-          actions: [
-            {
-              type: 'postback',
-              label: '役に立った',
-              data: 'feedback=useful',
-            },
-            {
-              type: 'postback',
-              label: '役に立たなかった',
-              data: 'feedback=not_useful',
-            },
-          ],
-        },
-      };
-
-      return client.replyMessage(event.replyToken, [
-        { type: 'text', text: replyMessage },
-        feedbackTemplate,
-      ]);
-    }
-
-    // それ以外のメッセージへの応答
-    const defaultReply = userMessage === 'こんにちは' ? 'こんねと' : 'おつカレッジ';
-    return client.replyMessage(event.replyToken, { type: 'text', text: defaultReply });
-  }
-
-  // 他のイベントは無視
+  // 他のイベントタイプには対応しない
   return Promise.resolve(null);
 }
 
 // サーバー起動
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`サーバーはポート${PORT}で実行されています`);
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
 });
