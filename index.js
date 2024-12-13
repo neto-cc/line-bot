@@ -1,7 +1,9 @@
 const express = require('express');
 const line = require('@line/bot-sdk');
 const admin = require('firebase-admin');
-require('dotenv').config(); // dotenvを使って.envファイルを読み込む
+const bodyParser = require('body-parser');
+const crypto = require('crypto');
+require('dotenv').config();
 
 // 環境変数を利用して設定を取得
 const config = {
@@ -10,11 +12,16 @@ const config = {
 };
 
 // Firebase Admin SDKの初期化
-const serviceAccount = JSON.parse(process.env.GOOGLE_CREDENTIALS);
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  databaseURL: process.env.FIREBASE_DATABASE_URL,
-});
+try {
+  const serviceAccount = JSON.parse(process.env.GOOGLE_CREDENTIALS);
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    databaseURL: process.env.FIREBASE_DATABASE_URL,
+  });
+} catch (error) {
+  console.error('Firebase initialization error:', error);
+  process.exit(1);
+}
 
 // Firestoreの参照を取得
 const db = admin.firestore();
@@ -22,21 +29,37 @@ const db = admin.firestore();
 // Expressアプリの作成
 const app = express();
 
-// LINE SDKミドルウェアを使用
-app.use('/webhook', line.middleware(config));
+// JSONリクエストのパース
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+
+// LINE署名の検証ミドルウェア
+function validateSignature(req, res, next) {
+  const signature = req.headers['x-line-signature'];
+  const body = JSON.stringify(req.body);
+  const hash = crypto.createHmac('sha256', config.channelSecret).update(body).digest('base64');
+
+  if (hash !== signature) {
+    console.error('Invalid signature');
+    return res.status(403).send('Invalid signature');
+  }
+  next();
+}
+
+// Webhookエンドポイント
+app.post('/webhook', validateSignature, async (req, res) => {
+  try {
+    const events = req.body.events;
+    const results = await Promise.all(events.map(handleEvent));
+    res.json(results);
+  } catch (err) {
+    console.error('Error handling webhook:', err);
+    res.status(500).end();
+  }
+});
 
 // LINEクライアントの作成
 const client = new line.Client(config);
-
-// Webhookエンドポイント
-app.post('/webhook', express.json(), (req, res) => {
-  Promise.all(req.body.events.map(handleEvent))
-    .then((result) => res.json(result))
-    .catch((err) => {
-      console.error(err);
-      res.status(500).end();
-    });
-});
 
 // イベントを処理する関数
 async function handleEvent(event) {
@@ -45,19 +68,27 @@ async function handleEvent(event) {
 
     // 年間行事に関するメッセージの処理
     if (userMessage.includes('年間行事')) {
-      const eventDoc = await db.collection('information').doc('annualEvents').get();
-      if (!eventDoc.exists) {
+      try {
+        const eventDoc = await db.collection('information').doc('annualEvents').get();
+        if (!eventDoc.exists) {
+          return client.replyMessage(event.replyToken, {
+            type: 'text',
+            text: '年間行事の情報が見つかりません。',
+          });
+        }
+
+        const replyMessage = eventDoc.data().url;
         return client.replyMessage(event.replyToken, {
           type: 'text',
-          text: '年間行事の情報が見つかりません。',
+          text: `年間行事の情報はこちらです: ${replyMessage}`,
+        });
+      } catch (error) {
+        console.error('Error fetching annual events:', error);
+        return client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: '年間行事の情報を取得中にエラーが発生しました。',
         });
       }
-
-      const replyMessage = eventDoc.data().url;
-      return client.replyMessage(event.replyToken, {
-        type: 'text',
-        text: `年間行事の情報はこちらです: ${replyMessage}`,
-      });
     }
 
     // デフォルトの応答
@@ -71,19 +102,18 @@ async function handleEvent(event) {
     const postbackData = event.postback.data;
 
     // Firestoreにフィードバックを保存
-    const feedbackData = {
-      userId: event.source.userId || 'anonymous',
-      feedback: postbackData,
-      timestamp: admin.firestore.FieldValue.serverTimestamp(),
-    };
+    try {
+      const feedbackData = {
+        userId: event.source.userId || 'anonymous',
+        feedback: postbackData,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      };
 
-    await db.collection('feedbacks').add(feedbackData)
-      .then(() => {
-        console.log('Feedback saved to Firestore');
-      })
-      .catch((err) => {
-        console.error('Error saving feedback to Firestore:', err);
-      });
+      await db.collection('feedbacks').add(feedbackData);
+      console.log('Feedback saved to Firestore');
+    } catch (error) {
+      console.error('Error saving feedback to Firestore:', error);
+    }
 
     // フィードバックに応答
     if (postbackData === 'feedback=useful') {
